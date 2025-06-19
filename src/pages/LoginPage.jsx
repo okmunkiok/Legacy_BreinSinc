@@ -31,6 +31,11 @@ const LoginPage = () => {
       console.error('Google 로그인 실패:', error);
       alert('Google 로그인에 실패했습니다. 다시 시도해주세요.');
     },
+    // [핵심 수정 사항]
+    // 사용자에게 어떤 권한을 요청할지 명시적으로 지정합니다.
+    // drive.file: 사용자가 선택한 특정 파일에 접근할 권한
+    // spreadsheets.readonly: 스프레드시트를 읽을 수 있는 권한
+    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets.readonly',
   });
 
   return (
