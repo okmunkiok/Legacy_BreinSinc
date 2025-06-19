@@ -1,56 +1,57 @@
-// 최종 단계 LoginPage.jsx
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Box, Typography, Button } from '@mui/material';
 import { useGoogleLogin } from '@react-oauth/google';
-import { Box, Button, Typography, Container, Paper } from '@mui/material';
-import GoogleIcon from '@mui/icons-material/Google';
+import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
   const { login } = useAuth();
-  const from = location.state?.from?.pathname || "/";
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
+      const accessToken = tokenResponse.access_token;
       try {
-        const userInfo = await axios.get(
-          'https://www.googleapis.com/oauth2/v3/userinfo',
-          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
-        );
-        login(userInfo.data, tokenResponse.access_token);
+        const res = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const userData = res.data;
+        login(userData, accessToken);
         navigate(from, { replace: true });
       } catch (error) {
-        console.error('Login Failed:', error);
+        console.error('사용자 정보 가져오기 실패:', error);
+        alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
       }
     },
-    scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    onError: (error) => {
+      console.error('Google 로그인 실패:', error);
+      alert('Google 로그인에 실패했습니다. 다시 시도해주세요.');
+    },
   });
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <Container component="main" maxWidth="xs">
-        <Paper elevation={6} sx={{ padding: 4, textAlign: 'center' }}>
-          <Typography component="h1" variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-            BreinSinc
-          </Typography>
-          <Typography variant="body1" color="text.secondary" paragraph>
-            Google 계정으로 로그인하여<br/>학습 데이터를 저장하고 관리하세요.
-          </Typography>
-          <Button
-            fullWidth
-            variant="contained"
-            size="large"
-            startIcon={<GoogleIcon />}
-            onClick={() => googleLogin()}
-            sx={{ mt: 3, textTransform: 'none', fontSize: '1rem', py: 1.5 }}
-          >
-            Google 계정으로 시작하기
-          </Button>
-        </Paper>
-      </Container>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Header />
+      <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          로그인
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          Google 계정으로 로그인하세요.
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => googleLogin()}
+          sx={{ fontSize: '1.1rem', padding: '10px 20px' }}
+        >
+          Google로 로그인
+        </Button>
+      </Box>
     </Box>
   );
 };
