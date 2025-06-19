@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>BreinSinc - Page Not Found</title>
+    <script type="text/javascript">
+      // 주소의 경로 부분(예: /BreinSinc/login)을 가져옵니다.
+      var path = window.location.pathname;
+
+      // 이 경로를 sessionStorage에 임시로 저장합니다.
+      // 'gh-pages-spa-redirect'는 우리가 알아볼 수 있는 임의의 이름입니다.
+      sessionStorage.setItem('gh-pages-spa-redirect', path);
+
+      // 즉시 홈페이지(index.html)로 이동시킵니다.
+      // import.meta.env.BASE_URL은 Vite가 자동으로 '/BreinSinc/'로 바꿔줍니다.
+      window.location.replace(import.meta.env.BASE_URL);
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
