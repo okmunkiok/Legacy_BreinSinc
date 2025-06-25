@@ -10,6 +10,7 @@ import LearningPage from './pages/LearningPage';
 import CardManagementPage from './pages/CardManagementPage';
 import StatisticsPage from './pages/StatisticsPage';
 import LoginPage from './pages/LoginPage';
+import SelectRangePage from './pages/SelectRangePage'; // 이미 추가하셨죠
 
 const theme = createTheme({
   palette: { mode: 'light', primary: { main: '#1976d2' } },
@@ -27,19 +28,12 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>
-          {/*
-            [핵심 수정 사항]
-            BrowserRouter에 basename을 설정합니다.
-            import.meta.env.BASE_URL은 Vite가 자동으로 설정해주는 환경 변수입니다.
-            - 로컬 개발 시: '/'
-            - 빌드 시: '/BreinSinc/'
-            이렇게 하면 로컬과 배포 환경 모두에서 라우팅이 정상적으로 동작합니다.
-          */}
           <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/" element={<HomePage />} />
               <Route path="/learning" element={<LearningPage />} />
+              <Route path="/select-range" element={<SelectRangePage />} /> {/* 이 줄이 빠져있었습니다! */}
               <Route path="/cards" element={<CardManagementPage />} />
               <Route path="/statistics" element={<StatisticsPage />} />
             </Routes>

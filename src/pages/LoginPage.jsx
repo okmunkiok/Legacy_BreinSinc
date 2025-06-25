@@ -35,7 +35,7 @@ const LoginPage = () => {
     // 사용자에게 어떤 권한을 요청할지 명시적으로 지정합니다.
     // drive.file: 사용자가 선택한 특정 파일에 접근할 권한
     // spreadsheets.readonly: 스프레드시트를 읽을 수 있는 권한
-    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets.readonly',
+    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
   });
 
   return (
