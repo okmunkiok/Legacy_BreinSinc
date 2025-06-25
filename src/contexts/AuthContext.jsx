@@ -1,75 +1,103 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 
-const AuthContext = createContext({
-  user: null,
-  googleAccessToken: null,
-  loading: true,
-  selectedSheet: null, // 기본값 추가
-  login: () => {},
-  logout: () => {},
-  setSelectedSheet: () => {}, // 기본값 추가
-});
+const AuthContext = createContext(null);
 
-export const useAuth = () => useContext(AuthContext);
+// 개발자 모드용 더미 데이터
+const DUMMY_CARD_DATA = [
+  ['CardID', 'English', 'French', 'Latin'],
+  ['card-001', 'one', 'un', 'unus'],
+  ['card-002', 'two', 'deux', 'duo'],
+  ['card-003', 'three', 'trois', 'tres'],
+  ['card-004', 'four', 'quatre', 'quattuor'],
+  ['card-005', 'five', 'cinq', 'quinque'],
+  ['card-006', 'six', 'six', 'sex'],
+  ['card-007', 'seven', 'sept', 'septem'],
+  ['card-008', 'eight', 'huit', 'octo'],
+  ['card-009', 'nine', 'neuf', 'novem'],
+  ['card-010', 'ten', 'dix', 'decem'],
+  ['card-011', 'eleven', 'onze', 'undecim'],
+  ['card-012', 'twelve', 'douze', 'duodecim'],
+  ['card-013', 'thirteen', 'treize', 'tredecim'],
+  ['card-014', 'fourteen', 'quatorze', 'quattuordecim'],
+  ['card-015', 'fifteen', 'quinze', 'quindecim'],
+  ['card-016', 'sixteen', 'seize', 'sedecim'],
+  ['card-017', 'seventeen', 'dix-sept', 'septendecim'],
+  ['card-018', 'eighteen', 'dix-huit', 'duodeviginti'],
+  ['card-019', 'nineteen', 'dix-neuf', 'undeviginti'],
+  ['card-020', 'twenty', 'vingt', 'viginti']
+];
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [googleAccessToken, setGoogleAccessToken] = useState(null);
-  const [loading, setLoading] = useState(true);
-  // 선택된 스프레드시트 정보를 저장할 상태
-  const [selectedSheet, setSelectedSheet] = useState(null);
+  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')));
+  const [googleAccessToken, setGoogleAccessToken] = useState(() => localStorage.getItem('googleAccessToken'));
+  const [selectedSheet, setSelectedSheet] = useState(() => JSON.parse(sessionStorage.getItem('selectedSheet')));
+  const [cardData, setCardData] = useState(() => JSON.parse(sessionStorage.getItem('cardData')));
+  const [devMode, setDevMode] = useState(false);
 
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      const storedToken = localStorage.getItem('googleAccessToken');
-      const storedSheet = localStorage.getItem('selectedSheet'); // 로컬 스토리지에서 시트 정보도 복원
-      if (storedUser && storedToken) {
-        setUser(JSON.parse(storedUser));
-        setGoogleAccessToken(storedToken);
-      }
-      if (storedSheet) {
-        setSelectedSheet(JSON.parse(storedSheet));
-      }
-    } catch (error) {
-      console.error("Failed to parse data from localStorage", error);
-      localStorage.clear();
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const login = (userData, accessToken) => {
-    setUser(userData);
-    setGoogleAccessToken(accessToken);
+  const login = (userData, token) => {
     localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('googleAccessToken', accessToken);
+    localStorage.setItem('googleAccessToken', token);
+    setUser(userData);
+    setGoogleAccessToken(token);
   };
 
   const logout = () => {
-    setUser(null);
-    setGoogleAccessToken(null);
-    setSelectedSheet(null); // 로그아웃 시 선택된 시트 정보도 초기화
     localStorage.removeItem('user');
     localStorage.removeItem('googleAccessToken');
-    localStorage.removeItem('selectedSheet'); // 로컬 스토리지에서도 삭제
+    sessionStorage.removeItem('selectedSheet');
+    sessionStorage.removeItem('cardData');
+    setUser(null);
+    setGoogleAccessToken(null);
+    setSelectedSheet(null);
+    setCardData(null);
+    setDevMode(false);
   };
 
-  // 시트가 선택될 때마다 로컬 스토리지에 저장하는 함수
-  const handleSetSelectedSheet = (sheet) => {
-    setSelectedSheet(sheet);
+  const updateSelectedSheet = (sheet) => {
     if (sheet) {
-      localStorage.setItem('selectedSheet', JSON.stringify(sheet));
+      sessionStorage.setItem('selectedSheet', JSON.stringify(sheet));
     } else {
-      localStorage.removeItem('selectedSheet');
+      sessionStorage.removeItem('selectedSheet');
+    }
+    setSelectedSheet(sheet);
+  };
+
+  const updateCardData = (data) => {
+    if (data) {
+      sessionStorage.setItem('cardData', JSON.stringify(data));
+    } else {
+      sessionStorage.removeItem('cardData');
+    }
+    setCardData(data);
+  };
+
+  const toggleDevMode = (enabled) => {
+    setDevMode(enabled);
+    if (enabled) {
+      updateCardData(DUMMY_CARD_DATA);
+      updateSelectedSheet({ id: 'dev-mode', name: '개발자 모드 (더미 데이터)' });
+    } else {
+      updateCardData(null);
+      updateSelectedSheet(null);
     }
   };
 
-  const value = { user, googleAccessToken, loading, login, logout, selectedSheet, setSelectedSheet: handleSetSelectedSheet };
+  const value = {
+    user,
+    googleAccessToken,
+    login,
+    logout,
+    selectedSheet,
+    setSelectedSheet: updateSelectedSheet,
+    cardData,
+    setCardData: updateCardData,
+    devMode,
+    toggleDevMode,
+  };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  return useContext(AuthContext);
 };

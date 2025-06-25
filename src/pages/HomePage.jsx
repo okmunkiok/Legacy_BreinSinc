@@ -1,15 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Container, Card, CardContent, Typography, Button } from '@mui/material';
+import { Box, Card, CardContent, Typography, Button } from '@mui/material';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { user, googleAccessToken, selectedSheet, setSelectedSheet } = useAuth();
+  const { user, googleAccessToken, selectedSheet, setSelectedSheet, setCardData, cardData, devMode } = useAuth();
 
   const menuItems = [
     { title: '카드 학습', description: '저장된 카드로 학습을 시작하세요', path: '/learning', color: '#4CAF50' },
@@ -18,11 +19,36 @@ const HomePage = () => {
   ];
 
   const handleSelectDataClick = () => {
-    gapi.load('picker', () => {
-      createPicker();
-    });
+    const fetchSheetData = async (fileId) => {
+      if (!googleAccessToken) {
+        alert("액세스 토큰이 없습니다. 다시 로그인해주세요.");
+        return;
+      }
 
-    function createPicker() {
+      const sheetName = 'CardData';
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${sheetName}?key=${API_KEY}`;
+      
+      try {
+        const response = await axios.get(url, {
+          headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+        
+        const fetchedData = response.data.values;
+        
+        if (fetchedData && fetchedData.length > 1) {
+          setCardData(fetchedData);
+          console.log(`[디버그/HomePage] 시트에서 데이터를 성공적으로 가져왔습니다:`, fetchedData);
+        } else {
+          setCardData(null);
+          alert('"CardData" 탭에 학습할 내용이 없습니다.');
+        }
+      } catch (error) {
+        console.error('시트 데이터 가져오기 실패:', error);
+        alert('시트 데이터를 가져오는 데 실패했습니다.');
+      }
+    };
+
+    gapi.load('picker', () => {
       const pickerCallback = (data) => {
         if (data.action === google.picker.Action.PICKED) {
           const doc = data.docs[0];
@@ -30,9 +56,8 @@ const HomePage = () => {
           const fileName = doc.name;
           
           console.log(`선택된 파일: ${fileName} (ID: ${fileId})`);
-          alert(`'${fileName}' 시트가 선택되었습니다.`);
-
           setSelectedSheet({ id: fileId, name: fileName });
+          fetchSheetData(fileId);
         }
       };
 
@@ -44,43 +69,76 @@ const HomePage = () => {
         .build();
       
       picker.setVisible(true);
-    }
+    });
   };
 
   const handleMenuClick = (path) => {
-    if (!user) {
-      navigate('/login', { state: { from: { pathname: path } } });
-      return;
-    }
-    if (selectedSheet) {
+    if (devMode || (user && selectedSheet && cardData)) {
       navigate(path);
-    } else {
+    } else if (!user) {
+      navigate('/login', { state: { from: { pathname: path } } });
+    } else if (!selectedSheet || !cardData) {
       alert('먼저 "카드 데이터 선택" 버튼을 눌러 학습할 스프레드시트를 선택해주세요.');
     }
   };
+
+  const isCardEnabled = devMode || (user && selectedSheet && cardData);
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
       <Box component="main" sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
         <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', gap: 2 }}>
+          
           <Button
             variant="contained"
             color="primary"
             size="large"
             startIcon={<FindInPageIcon />}
             onClick={handleSelectDataClick}
-            disabled={!user}
+            disabled={!user || devMode}
             sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 'bold' }}
           >
-            {selectedSheet ? `선택된 시트: ${selectedSheet.name}` : "카드 데이터 선택"}
+            {devMode ? '개발자 모드 활성화됨' : (selectedSheet ? `선택된 시트: ${selectedSheet.name}` : "카드 데이터 선택")}
           </Button>
+          
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexDirection: { xs: 'column', lg: 'row' } }}>
             {menuItems.map((item) => (
-              <Card key={item.title} onClick={() => handleMenuClick(item.path)} sx={{ width: { xs: '100%', lg: 300 }, bgcolor: item.color, color: 'white', cursor: 'pointer', '&:hover': { transform: 'translateY(-5px)' } }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', minHeight: 180, p: 2 }}>
-                  <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>{item.title}</Typography>
-                  <Typography variant="body1" sx={{ mt: 1 }}>{item.description}</Typography>
+              <Card 
+                key={item.title} 
+                onClick={() => handleMenuClick(item.path)} 
+                sx={{ 
+                  width: { xs: '100%', lg: 300 }, 
+                  bgcolor: isCardEnabled ? item.color : '#cccccc',
+                  color: 'white', 
+                  cursor: isCardEnabled ? 'pointer' : 'not-allowed',
+                  opacity: isCardEnabled ? 1 : 0.6,
+                  '&:hover': isCardEnabled ? { 
+                    transform: 'translateY(-5px)', 
+                    boxShadow: 6 
+                  } : {},
+                  transition: 'all 0.2s'
+                }}
+              >
+                <CardContent sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'center', 
+                  height: '100%', 
+                  minHeight: 180, 
+                  p: 2 
+                }}>
+                  <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    {item.title}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mt: 1 }}>
+                    {item.description}
+                  </Typography>
+                  {!isCardEnabled && (
+                    <Typography variant="caption" sx={{ mt: 2, opacity: 0.8 }}>
+                      {!user ? '로그인이 필요합니다' : '데이터를 선택해주세요'}
+                    </Typography>
+                  )}
                 </CardContent>
               </Card>
             ))}

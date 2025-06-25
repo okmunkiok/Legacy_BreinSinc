@@ -1,13 +1,17 @@
 import React from 'react';
+import { AppBar, Toolbar, Typography, Button, Box, Checkbox, FormControlLabel } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
 const Header = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, devMode, toggleDevMode } = useAuth();
 
-  const handleLogin = () => {
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+
+  const handleLoginClick = () => {
     navigate('/login');
   };
 
@@ -16,33 +20,64 @@ const Header = () => {
     navigate('/');
   };
 
-  const handleTitleClick = () => {
-    navigate('/');
-  };
-
   return (
-    <AppBar position="static" color="primary">
+    <AppBar position="static" sx={{ backgroundColor: '#58cc02' }}>
       <Toolbar>
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ flexGrow: 1, cursor: 'pointer' }}
-          onClick={handleTitleClick}
+        <Typography 
+          variant="h5" 
+          component="h1" 
+          sx={{ 
+            flexGrow: 1, 
+            fontWeight: 'bold', 
+            cursor: 'pointer',
+            color: 'white',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={handleLogoClick}
         >
           BreinSinc
         </Typography>
-        {user ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">{user.name}</Typography>
-            <Button color="inherit" onClick={handleLogout}>
-              로그아웃
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* 개발자 모드 체크박스 */}
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={devMode}
+                onChange={(e) => toggleDevMode(e.target.checked)}
+                sx={{ 
+                  color: 'white',
+                  '&.Mui-checked': {
+                    color: 'white',
+                  },
+                }}
+              />
+            }
+            label="개발자 모드"
+            sx={{ 
+              color: 'white',
+              mr: 2,
+              '& .MuiFormControlLabel-label': {
+                fontSize: '0.9rem'
+              }
+            }}
+          />
+          
+          {user ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="body1" sx={{ color: 'white' }}>
+                {user.displayName || user.email}
+              </Typography>
+              <Button color="inherit" onClick={handleLogout} sx={{ color: 'white' }}>
+                로그아웃
+              </Button>
+            </Box>
+          ) : (
+            <Button color="inherit" onClick={handleLoginClick} sx={{ color: 'white' }}>
+              로그인
             </Button>
-          </Box>
-        ) : (
-          <Button color="inherit" onClick={handleLogin}>
-            로그인
-          </Button>
-        )}
+          )}
+        </Box>
       </Toolbar>
     </AppBar>
   );
