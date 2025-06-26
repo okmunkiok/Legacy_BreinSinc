@@ -163,7 +163,12 @@ export default function LearningPage() {
     const accuracy = totalAttempts > 0 ? Math.round((totalCorrect / Object.keys(attemptCountRef.current).length) * 100) : 0;
    
     const timestamp = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-    const selectedColsStr = selectedCols.map(c => c === null ? 'null' : c).join(',');
+    
+    // 수정: 열 이름도 포함하도록 변경
+    const selectedColsStr = selectedCols.map(c => {
+      if (c === null) return 'null';
+      return headers[c] ? `${c}_${headers[c]}` : `${c}`;
+    }).join(',');
 
     const values = [[
       timestamp,
@@ -175,16 +180,23 @@ export default function LearningPage() {
     ]];
 
     try {
-      const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}?ranges=StudyLog!A1&key=${API_KEY}`;
-     
+      // StudyLog 탭과 헤더 확인
+      const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/StudyLog!A1:Z1?key=${API_KEY}`;
+      let existingHeaders = [];
+      
       try {
-        await axios.get(checkUrl, {
+        const checkResponse = await axios.get(checkUrl, {
           headers: { 'Authorization': `Bearer ${googleAccessToken}` }
         });
+        
+        if (checkResponse.data.values && checkResponse.data.values.length > 0) {
+          existingHeaders = checkResponse.data.values[0];
+        }
       } catch (checkError) {
         console.log('StudyLog 탭이 없습니다. 새로 생성합니다.');
+        
+        // StudyLog 탭 생성
         const addSheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}:batchUpdate?key=${API_KEY}`;
-       
         await axios.post(addSheetUrl, {
           requests: [{
             addSheet: {
@@ -199,10 +211,19 @@ export default function LearningPage() {
             'Content-Type': 'application/json'
           }
         });
+      }
 
+      // 헤더가 정확히 일치하는지 확인 - 길이 체크를 먼저 하고, 빈 배열도 불일치로 처리
+      const requiredHeaders = ['Timestamp', 'SelectedCols', 'StudyRange', 'Duration [sec]', 'Score', 'OrderedMode'];
+      const headersMatch = existingHeaders.length === requiredHeaders.length &&
+                          existingHeaders.length > 0 &&
+                          requiredHeaders.every((header, index) => existingHeaders[index] === header);
+
+      if (!headersMatch) {
+        console.log('헤더가 일치하지 않거나 비어있습니다. 전체 헤더를 덮어씁니다.');
         const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/StudyLog!A1:F1?valueInputOption=USER_ENTERED&key=${API_KEY}`;
         await axios.put(headerUrl, {
-          values: [['Timestamp', 'SelectedCols', 'StudyRange', 'Duration [sec]', 'Score', 'OrderedMode']]
+          values: [requiredHeaders]
         }, {
           headers: {
             'Authorization': `Bearer ${googleAccessToken}`,
@@ -211,6 +232,7 @@ export default function LearningPage() {
         });
       }
 
+      // 데이터 추가
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/StudyLog:append?valueInputOption=USER_ENTERED&key=${API_KEY}`;
       const response = await axios.post(url, {
         values: values
@@ -633,7 +655,7 @@ export default function LearningPage() {
         {/* 진행바가 동그라미 정확히 중심을 관통하도록 수정 */}
         <Box sx={{
             position: 'absolute', 
-            left: 'calc(50% + 10px)', // 동그라미 중심으로 정확히 이동
+            left: 'calc(50% + 12px)', // 더 정확하게 조정
             top: 0, 
             bottom: 0,
             transform: 'translateX(-50%)', 
@@ -662,28 +684,57 @@ export default function LearningPage() {
       height: '100vh',
       display: 'flex',
       flexDirection: isLand ? 'row' : 'column',
-      bgcolor: '#f7f7f7'
+      bgcolor: '#f7f7f7' // 모든 모드에서 일관된 배경색
     }}>
-      {/* 가로 모드 왼쪽 사이드바 */}
+      {/* 가로 모드 왼쪽 사이드바 - 폭 줄이고 배경색 통일 */}
       {isLand && (
         <Box sx={{
-          width: 180, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', bgcolor: '#f0f0f0', p: 2
+          width: 100, // 180에서 100으로 줄임
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          bgcolor: '#f7f7f7', // 배경색 통일
+          p: 1, // 패딩도 줄임
+          borderRight: '1px solid #e0e0e0' // 구분선 추가
         }}>
-          <IconButton onClick={() => navigate('/')}> <CloseIcon/> </IconButton>
+          <IconButton onClick={() => navigate('/')} size="small"> 
+            <CloseIcon fontSize="small"/> 
+          </IconButton>
           <FormControlLabel
-            control={<Checkbox checked={orderedMode} onChange={(e) => setOrderedMode(e.target.checked)} sx={{ '&.Mui-checked': { color: '#58cc02' } }} />}
-            label="연습 모드"
-            sx={{ color: '#666', mt: 1, mb: 1 }}
+            control={
+              <Checkbox 
+                checked={orderedMode} 
+                onChange={(e) => setOrderedMode(e.target.checked)} 
+                size="small"
+                sx={{ '&.Mui-checked': { color: '#58cc02' } }} 
+              />
+            }
+            label="연습"
+            sx={{ 
+              color: '#666', 
+              mt: 1, 
+              mb: 1,
+              '& .MuiFormControlLabel-label': {
+                fontSize: '0.85rem' // 폰트 크기 줄임
+              }
+            }}
           />
           <Button 
             variant="outlined" 
             size="small" 
             startIcon={<AddIcon />} 
             onClick={handleAddColumn}
-            sx={{ mb: 2, color: '#666', borderColor: '#999' }}
+            sx={{ 
+              mb: 2, 
+              color: '#666', 
+              borderColor: '#999',
+              fontSize: '0.8rem', // 폰트 크기 줄임
+              py: 0.5,
+              px: 1,
+              minWidth: 'auto' // 최소 너비 제거
+            }}
           >
-            열 추가
+            열
           </Button>
           <Box sx={{ flexGrow: 1, width: '100%', position: 'relative', display: 'flex', justifyContent: 'center' }}>
             <VerticalProgressBar />
@@ -692,8 +743,13 @@ export default function LearningPage() {
       )}
 
       <Box sx={{
-        flexGrow: 1, maxWidth: 1200, mx: 'auto', p: 2,
-        display: 'flex', flexDirection: 'column'
+        flexGrow: 1, 
+        maxWidth: 1200, 
+        mx: 'auto', 
+        p: 2,
+        display: 'flex', 
+        flexDirection: 'column',
+        bgcolor: '#f7f7f7' // 일관된 배경색 유지
       }}>
         {/* 세로 모드 상단 영역 */}
         {!isLand && (
@@ -737,7 +793,7 @@ export default function LearningPage() {
                 onClick={handleAddColumn}
                 sx={{ color: '#666', borderColor: '#999' }}
               >
-                열 추가
+                열
               </Button>
             </Box>
           </>
@@ -748,7 +804,7 @@ export default function LearningPage() {
           {selectedCols.map((ci, pos) => (
             <Box key={pos} sx={{
               flex: ci === null ? '0 0 30px' : 1, display: 'flex', flexDirection: 'column',
-              gap: 1, overflow: 'hidden', bgcolor: ci === null ? '#f0f0f0' : 'transparent', opacity: ci === null ? 0.7 : 1
+              gap: 1, overflow: 'hidden', bgcolor: ci === null ? '#e8e8e8' : 'transparent', opacity: ci === null ? 0.7 : 1
             }}>
               <Select size="small" value={ci !== null ? ci : ''}
                 onChange={e => {
@@ -756,14 +812,22 @@ export default function LearningPage() {
                   setSelectedCols(prev => {
                     const active = prev.filter(v => v !== null).length;
                     const next = [...prev];
-                    if ((v === 'blank' || v === 'none') && next[pos] === null) return prev;
+                    
                     if (v === 'blank') {
-                      if (active <= 2) { alert('최소 2개의 열이 필요합니다'); return prev; }
+                      if (active <= 2) { 
+                        alert('최소 2개의 열이 필요합니다'); 
+                        return prev; 
+                      }
                       next[pos] = null;
                     } else if (v === 'none') {
-                      if (active <= 2) { alert('최소 2개의 열이 필요합니다'); return prev; }
-                      next.splice(pos, 1); // next.push(null) 제거 - 이게 핵심!
-                    } else next[pos] = +v;
+                      if (active <= 2 && next[pos] !== null) { 
+                        alert('최소 2개의 열이 필요합니다'); 
+                        return prev; 
+                      }
+                      next.splice(pos, 1);
+                    } else {
+                      next[pos] = +v;
+                    }
                     return next;
                   });
                 }}
